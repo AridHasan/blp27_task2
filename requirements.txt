@@ -1,0 +1,16 @@
+# scorer and format checker
+torch>=2.1
+transformers>=4.56
+git+https://github.com/csebuetnlp/normalizer   # Bangla normalisation for BanglaBERT (BERTScore)
+rouge-score>=0.1.2
+sacrebleu>=2.3
+nltk>=3.8          # METEOR; WordNet data is downloaded on first use
+regex
+
+# mT5 baseline and example script
+datasets>=2.18
+huggingface_hub>=0.23
+accelerate>=0.30
+sentencepiece      # mT5 tokenizer
+protobuf
+peft>=0.12

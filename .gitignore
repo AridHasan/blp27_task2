@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+runs/
+outputs/
+wandb/
+*.zip
+task.jsonl
+scores.json
+data/test/
+.env
+.DS_Store
+.venv/
+data/*.py
