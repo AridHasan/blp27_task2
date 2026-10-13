@@ -1,31 +1,29 @@
 """
-Self-contained BERTScore (Zhang et al., 2020) with language-specific encoders.
+BERTScore for BLP-2027 Task 2, computed with the official `bert_score` library
+(Zhang et al., 2020; https://github.com/Tiiiger/bert_score) and a language-specific encoder.
 
-Why not call `bert_score.score()` directly?
-  * BanglaBERT and IndicBERT are not in bert_score's built-in model table, and
-    IndicBERTv2's tokenizer config does not set `model_max_length`, so long answers
-    would not be truncated safely. Here the maximum length and layer are explicit.
-  * Every setting that affects the leaderboard is pinned in LANG_MODEL_CONFIG below.
+Settings (fixed for the leaderboard): idf=False, no baseline rescaling, embeddings from the
+layer given below, inputs truncated to 512 tokens.
 
-The computation follows the reference implementation (bert_score v0.3.x) with
-idf=False and no baseline rescaling:
-  * contextual embeddings from a fixed hidden layer, L2-normalised;
-  * greedy matching by cosine similarity over all non-padding tokens;
-  * [CLS]/[SEP] get weight 0 when averaging;
-  * P = mean over candidate tokens of max-sim to reference,
-    R = mean over reference tokens of max-sim to candidate,
-    F = 2PR / (P + R).
-An empty candidate (or reference) receives P = R = F = 0.
+Two small safeguards around the library, neither of which changes a score:
+  * Truncation: bert_score truncates to `tokenizer.model_max_length`. IndicBERTv2's tokenizer
+    leaves this unset (a huge sentinel value), so answers longer than 512 tokens would crash
+    Hindi/Assamese scoring. We set it to the model's real limit (512).
+  * Empty strings: an empty answer or reference gets P = R = F = 0 and is not sent to the
+    library (some bert_score/transformers versions fail on empty input).
+
+Bangla text is normalised with the csebuetnlp normalizer, as recommended for BanglaBERT.
 """
 
 import logging
+import os
 
 import torch
-from transformers import AutoModel, AutoTokenizer
+from bert_score import BERTScorer as _LibBERTScorer
 
 # ---------------------------------------------------------------------------
 # Official scorer configuration. Do NOT change for leaderboard submissions.
-# `layer` is the index into `hidden_states` (0 = embeddings, 1..N = encoder layers).
+# `layer` is bert_score's `num_layers`: embeddings are taken from that encoder layer.
 # ---------------------------------------------------------------------------
 LANG_MODEL_CONFIG = {
     "bn": {"model": "csebuetnlp/banglabert", "layer": 9, "max_length": 512, "normalize_bangla": True},
@@ -46,7 +44,22 @@ def _get_bangla_normalizer():
     return normalize
 
 
+def resolve_model_path(model_id):
+    """Use a local copy if BLP27_MODEL_DIR is set and contains <model_id>/ (e.g. for offline
+    clusters); otherwise return the Hugging Face id unchanged. The weights are the same either way."""
+    root = os.environ.get("BLP27_MODEL_DIR")
+    if root:
+        local = os.path.join(root, model_id)
+        if os.path.isfile(os.path.join(local, "config.json")):
+            return local
+        logging.warning(f"BLP27_MODEL_DIR is set but {local}/config.json was not found; "
+                        f"falling back to the Hugging Face id '{model_id}'.")
+    return model_id
+
+
 class BERTScorer:
+    """Thin wrapper around bert_score.BERTScorer for one language's encoder."""
+
     def __init__(self, model_name, layer, max_length=512, batch_size=32, device=None,
                  normalize_bangla=False):
         self.model_name = model_name
@@ -56,19 +69,21 @@ class BERTScorer:
         self.normalize = _get_bangla_normalizer() if normalize_bangla else None
 
         logging.info(f"Loading BERTScore encoder {model_name} (layer {layer}) on {self.device}")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name).to(self.device).eval()
+        self._scorer = _LibBERTScorer(
+            model_type=model_name,
+            num_layers=layer,
+            batch_size=batch_size,
+            device=self.device,
+            idf=False,
+            rescale_with_baseline=False,
+        )
 
-        n_layers = self.model.config.num_hidden_layers
-        if not 0 <= layer <= n_layers:
-            raise ValueError(f"layer={layer} out of range for {model_name} ({n_layers} layers).")
-
-        # Some tokenizers (e.g. IndicBERTv2) leave model_max_length unset (a huge sentinel).
-        tok_max = self.tokenizer.model_max_length
-        model_max = getattr(self.model.config, "max_position_embeddings", max_length)
-        self.max_length = min(max_length, model_max, tok_max if tok_max < 100_000 else max_length)
-        # Like bert_score, only [CLS] and [SEP] get zero weight ([UNK] etc. still count).
-        self.special_ids = {i for i in (self.tokenizer.cls_token_id, self.tokenizer.sep_token_id) if i is not None}
+        # Safeguard 1: make sure long inputs are truncated to what the model can take.
+        tokenizer = self._scorer._tokenizer
+        model_limit = getattr(self._scorer._model.config, "max_position_embeddings", max_length)
+        limit = min(max_length, model_limit)
+        if tokenizer.model_max_length is None or tokenizer.model_max_length > limit:
+            tokenizer.model_max_length = limit
 
     def _prep(self, texts):
         texts = [t.strip() for t in texts]
@@ -76,47 +91,30 @@ class BERTScorer:
             texts = [self.normalize(t) if t else t for t in texts]
         return texts
 
-    @torch.no_grad()
-    def _embed(self, texts):
-        """Return list of (embeddings [T, H] normalised, weights [T]) per text (T includes specials)."""
-        out = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
-            enc = self.tokenizer(batch, padding=True, truncation=True, max_length=self.max_length,
-                                 return_tensors="pt").to(self.device)
-            hidden = self.model(**enc, output_hidden_states=True).hidden_states[self.layer]
-            hidden = hidden / hidden.norm(dim=-1, keepdim=True).clamp_min(1e-12)
-            for j in range(len(batch)):
-                mask = enc["attention_mask"][j].bool()
-                ids = enc["input_ids"][j][mask].tolist()
-                weights = torch.tensor([0.0 if t in self.special_ids else 1.0 for t in ids],
-                                       device=self.device)
-                out.append((hidden[j][mask].float(), weights))
-        return out
-
-    def score(self, candidates, references):
+    def score(self, candidates, references, label=""):
         """Return (P, R, F) lists of floats, one value per (candidate, reference) pair."""
         if len(candidates) != len(references):
             raise ValueError("candidates and references must have the same length.")
         cands, refs = self._prep(candidates), self._prep(references)
 
-        cand_emb = self._embed(cands)
-        ref_emb = self._embed(refs)
-
-        P, R, F = [], [], []
-        for (c_e, c_w), (r_e, r_w), c_txt, r_txt in zip(cand_emb, ref_emb, cands, refs):
-            if not c_txt or not r_txt or c_w.sum() == 0 or r_w.sum() == 0:
-                P.append(0.0); R.append(0.0); F.append(0.0)
-                continue
-            sim = c_e @ r_e.T                      # [Tc, Tr]
-            p = (sim.max(dim=1).values * c_w).sum() / c_w.sum()
-            r = (sim.max(dim=0).values * r_w).sum() / r_w.sum()
-            f = 2 * p * r / (p + r) if (p + r) > 0 else torch.tensor(0.0)
-            P.append(p.item()); R.append(r.item()); F.append(f.item())
+        # Safeguard 2: empty strings score 0 and are not sent to the library.
+        keep = [i for i, (c, r) in enumerate(zip(cands, refs)) if c and r]
+        P = [0.0] * len(cands)
+        R = [0.0] * len(cands)
+        F = [0.0] * len(cands)
+        if keep:
+            if label:
+                n_empty = len(cands) - len(keep)
+                logging.info(f"  {label}: computing BERTScore for {len(keep)} pairs"
+                             + (f" ({n_empty} empty, scored 0)" if n_empty else ""))
+            p, r, f = self._scorer.score([cands[i] for i in keep], [refs[i] for i in keep],
+                                         verbose=bool(label), batch_size=self.batch_size)
+            for j, i in enumerate(keep):
+                P[i], R[i], F[i] = p[j].item(), r[j].item(), f[j].item()
         return P, R, F
 
 
 def get_scorer(lang, batch_size=32, device=None, config=None):
     cfg = (config or LANG_MODEL_CONFIG)[lang]
-    return BERTScorer(cfg["model"], cfg["layer"], cfg.get("max_length", 512), batch_size, device,
-                      cfg.get("normalize_bangla", False))
+    return BERTScorer(resolve_model_path(cfg["model"]), cfg["layer"], cfg.get("max_length", 512),
+                      batch_size, device, cfg.get("normalize_bangla", False))

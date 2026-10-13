@@ -54,9 +54,9 @@ Paper submissions are open only to teams that submitted systems during the evalu
 
 ## Recent Updates
 
-- **October 15, 2027** Development phase starts
-- **October 15, 2027** Training, dev and dev-test data released
-- **October 15, 2027** Release of the mT5 baseline and an example LoRA LLM fine-tuning script for Subtask 2A and 2B
+- **October 15, 2026** Development phase starts
+- **October 15, 2026** Training, dev and dev-test data released
+- **October 15, 2026** Release of the mT5 baseline and an example LoRA LLM fine-tuning script for Subtask 2A and 2B
 
 ## Contents of the Directory
 

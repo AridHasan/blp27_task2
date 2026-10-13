@@ -12,3 +12,4 @@ data/test/
 .DS_Store
 .venv/
 data/*.py
+evalai
