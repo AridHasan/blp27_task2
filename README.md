@@ -2,9 +2,9 @@
 
 ## Task Website
 
-### [Please visit this site to get updated information on this task.](https://TBA)
+### [Please visit this site to get updated information on this task.](https://multilingual-qa.github.io/)
 
-https://TBA
+[https://multilingual-qa.github.io/](https://multilingual-qa.github.io/)
 
 ## Objective
 
@@ -278,19 +278,22 @@ Baseline Results for the task on Dev-Test set (mT5-base, one model per language)
 
 | Language | BS-F1 | BS-P | BS-R | ROUGE-L | METEOR | BLEU |
 |---|---|---|---|---|---|---|
-| Bangla | TBA | TBA | TBA | TBA | TBA | TBA |
-| English | TBA | TBA | TBA | TBA | TBA | TBA |
-| Assamese | TBA | TBA | TBA | TBA | TBA | TBA |
-| Hindi | TBA | TBA | TBA | TBA | TBA | TBA |
+| Bangla | **0.5081** | 0.5833 | 0.4585 | 0.1738 | 0.1046 | 0.0097 |
+| English | **0.5479** | 0.5908 | 0.5153 | 0.2213 | 0.1697 | 0.0443 |
+| Assamese | **0.5019** | 0.5736 | 0.4547 | 0.2206 | 0.1396 | 0.0073 |
+| Hindi | **0.4719** | 0.4959 | 0.4614 | 0.1565 | 0.1204 | 0.0220 |
 
 #### Subtask 2B
 
 Baseline Results for the task on Dev-Test set (mT5-base, single multilingual model)
 
-| Model | Bangla | English | Assamese | Hindi | All (macro BS-F1) |
-|---|---|---|---|---|---|
-| mT5-base | TBA | TBA | TBA | TBA | TBA |
-
+| Language | BS-F1 | BS-P | BS-R | ROUGE-L | METEOR | BLEU |
+|---|---|---|---|---|---|---|
+| Bangla | **0.5086** | 0.5821 | 0.4601 | 0.1751 | 0.1076 | 0.0097 |
+| English | **0.5465** | 0.5882 | 0.5151 | 0.2194 | 0.1699 | 0.0441 |
+| Assamese | **0.5272** | 0.5897 | 0.4858 | 0.2343 | 0.1524 | 0.0142 |
+| Hindi | **0.4699** | 0.4939 | 0.4597 | 0.1548 | 0.1189 | 0.0218 |
+| All (macro) | **0.5130** | 0.5635 | 0.4802 | 0.1959 | 0.1372 | 0.0224 |
 Results on the blind test set will be added after the evaluation phase.
 
 ## Format checker
@@ -440,7 +443,7 @@ Please join us in the Slack channel for discussion and questions:
 - [Md Arid Hasan](https://aridhasan.github.io), PhD Student, University of Toronto, Canada
 - [Firoj Alam](https://firojalam.one/), Senior Scientist, Qatar Computing Research Institute, Qatar
 - [Shammur Absar Chowdhury](https://shammur.one), Scientist, Qatar Computing Research Institute, Qatar
-- [Shahinur Rahman Laskar](#), Assistant Professor, UPES, India
+- [Sahinur Rahman Laskar](#), Assistant Professor, UPES, India
 - [Nowshin Mahjabin](#), Bangladesh
 - [Syed Ishtiaque Ahmed](https://ishtiaque.net), Associate Professor, University of Toronto, Canada
 
