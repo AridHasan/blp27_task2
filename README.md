@@ -390,9 +390,9 @@ A file may contain any combination of tracks (see [Participation](#participation
 
 ### Submission Site
 
-All tracks are submitted to a single Codabench competition, which shows one leaderboard for each track plus 2B-All:
+All tracks are submitted to a single EvalAI competition, which shows one leaderboard for each track plus 2B-All:
 
-**https://www.codabench.org/competitions/TBA/**
+**https://eval.qcri.org/web/challenges/challenge-page/6/overview**
 
 ## Citation
 
@@ -443,7 +443,7 @@ Please join us in the Slack channel for discussion and questions:
 - [Md Arid Hasan](https://aridhasan.github.io), PhD Student, University of Toronto, Canada
 - [Firoj Alam](https://firojalam.one/), Senior Scientist, Qatar Computing Research Institute, Qatar
 - [Shammur Absar Chowdhury](https://shammur.one), Scientist, Qatar Computing Research Institute, Qatar
-- [Sahinur Rahman Laskar](#), Assistant Professor, UPES, India
+- [Sahinur Rahman Laskar](https://sahinurlaskar.github.io/), Assistant Professor, UPES, India
 - [Nowshin Mahjabin](#), Bangladesh
 - [Syed Ishtiaque Ahmed](https://ishtiaque.net), Associate Professor, University of Toronto, Canada
 
